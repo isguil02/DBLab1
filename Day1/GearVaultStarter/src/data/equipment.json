@@ -1,0 +1,56 @@
+[
+  {
+    "id": 1,
+    "name": "Canon EOS R50",
+    "category": "Camera",
+    "condition": "Excellent",
+    "status": "Available",
+    "dailyRate": 35,
+    "description": "Mirrorless camera kit"
+  },
+  {
+    "id": 2,
+    "name": "Epson PowerLite",
+    "category": "Projector",
+    "condition": "Good",
+    "status": "Rented",
+    "dailyRate": 28,
+    "description": "Portable HD projector"
+  },
+  {
+    "id": 3,
+    "name": "Shure SM58",
+    "category": "Audio",
+    "condition": "Excellent",
+    "status": "Available",
+    "dailyRate": 12,
+    "description": "Dynamic vocal microphone"
+  },
+  {
+    "id": 4,
+    "name": "DJI Osmo Action",
+    "category": "Camera",
+    "condition": "Good",
+    "status": "Maintenance",
+    "dailyRate": 22,
+    "description": "Compact action camera"
+  },
+  {
+    "id": 5,
+    "name": "Yamaha Mixer",
+    "category": "Audio",
+    "condition": "Excellent",
+    "status": "Available",
+    "dailyRate": 30,
+    "description": "Six-channel audio mixer"
+  },
+  {
+    "id": 6,
+    "name": "LED Light Kit",
+    "category": "Lighting",
+    "condition": "Good",
+    "status": "Available",
+    "dailyRate": 18,
+    "description": "Portable studio lighting"
+  }
+]

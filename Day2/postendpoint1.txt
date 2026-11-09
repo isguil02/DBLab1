@@ -1,0 +1,35 @@
+app.post("/api/equipment", (req, res) => {
+  const { name, category, condition } = req.body;
+
+  // Validate required fields
+  if (
+    typeof name !== "string" ||
+    !name.trim() ||
+    typeof category !== "string" ||
+    !category.trim()
+  ) {
+    return res.status(400).json({
+      error: "Equipment name and category are required"
+    });
+  }
+
+  // Generate a unique ID for this in-memory dataset
+  const newId = equipment.length > 0
+    ? Math.max(...equipment.map(item => item.id)) + 1
+    : 1;
+
+  const newEquipment = {
+    id: newId,
+    name: name.trim(),
+    category: category.trim(),
+    condition: typeof condition === "string" &&
+      condition.trim()
+        ? condition.trim()
+        : "Good",
+    available: true
+  };
+
+  equipment.push(newEquipment);
+
+  res.status(201).json(newEquipment);
+});
