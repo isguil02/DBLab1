@@ -1,0 +1,30 @@
+import express from "express";
+import cors from "cors";
+import "dotenv/config";
+import { connectDB } from "./config/db.js";
+import equipmentRoutes from "./routes/equipmentRoutes.js";
+
+const app = express();
+app.use(cors());
+const PORT = process.env.PORT || 3001;
+app.use(express.json());
+
+app.get("/api/test", (req, res) => {
+  res.json({
+    message: "Gearvault API is running"
+  });
+});
+
+app.use("/api/equipment", equipmentRoutes);
+
+async function startServer() {
+  await connectDB();
+
+  app.listen(PORT, () => {
+    console.log(
+      `GearVault API running on port ${PORT}`
+    );
+  });
+}
+
+startServer();
