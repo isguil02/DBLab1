@@ -1,148 +1,147 @@
+import React, {
+  useState,
+  useEffect,
+  useMemo
+} from "react";
 
-import React, { useState, useEffect, useMemo } from 'react';
+import EquipmentCard from "./components/EquipmentCard.jsx";
+import EquipmentForm from "./components/EquipmentForm.jsx";
+import {
+  getEquipment,
+  createEquipment,
+  updateEquipment,
+  deleteEquipment
+} from "./services/equipmentApi.js";
 
-import initialEquipment from './data/equipment.json';
-import EquipmentCard from './components/EquipmentCard.jsx';
-import EquipmentForm from './components/EquipmentForm.jsx';
-
-const KEY = 'gearvault-equipment-v1';
-
-const statuses = ['Available', 'Rented', 'Maintenance'];
+const statuses = ["Available", "Unavailable"];
 
 export default function App() {
-  // State Management
+  //Equipment now comes from MongoDB, not localStorage.
+  const [equipment, setEquipment] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
-  const [equipment, setEquipment] = useState(() => {
-    try {
-      const stored = localStorage.getItem(KEY);
+  //Preserve existing filters.
+  const [search, setSearch] = useState("");
+  const [category, setCategory] = useState("All");
+  const [status, setStatus] = useState("All");
 
-      return stored
-        ? JSON.parse(stored)
-        : initialEquipment;
-    } catch {
-      return initialEquipment;
-    }
-  });
-
-  const [search, setSearch] = useState('');
-  const [category, setCategory] = useState('All');
-  const [status, setStatus] = useState('All');
-
+  //Preserve existing form state.
   const [editing, setEditing] = useState(null);
   const [showForm, setShowForm] = useState(false);
 
-  // Save Equipment to Local Storage
+  //FSI change
+  const [success, setSuccess] = useState("");
 
+  //Convert MongoDB availability into a display status.
+  function displayStatus(item) {
+    return item.available ? "Available" : "Unavailable";
+  }
+
+  //NEW: Retrieve equipment from Express.
+  async function loadEquipment() {
+    setLoading(true);
+    setError("");
+
+    try {
+      const data = await getEquipment();
+      setEquipment(data);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  //NEW: Load equipment when the application opens.
   useEffect(() => {
-    localStorage.setItem(KEY, JSON.stringify(equipment));
-  }, [equipment]);
+    loadEquipment();
+  }, []);
 
-  // Equipment Categories
-
+  //Existing category logic.
   const categories = useMemo(() => {
     return [
-      'All',
-      ...new Set(equipment.map(x => x.category))
+      "All",
+      ...new Set(equipment.map(item => item.category))
     ];
   }, [equipment]);
 
-  // Search and Filter Equipment
-
+  //Existing filtering logic, adapted to MongoDB.
   const visible = useMemo(() => {
-    return equipment.filter(x =>
-      x.name.toLowerCase().includes(search.toLowerCase()) &&
-      (category === 'All' || x.category === category) &&
-      (status === 'All' || x.status === status)
-    );
+    return equipment.filter(item => {
+      const matchesSearch = item.name
+        .toLowerCase()
+        .includes(search.toLowerCase());
+
+      const matchesCategory =
+        category === "All" ||
+        item.category === category;
+
+      const matchesStatus =
+        status === "All" ||
+        displayStatus(item) === status;
+
+      return matchesSearch &&
+        matchesCategory &&
+        matchesStatus;
+    });
   }, [equipment, search, category, status]);
 
-  // Create or Update Equipment
-
-  function save(item) {
-    if (item.id) {
-      setEquipment(prev =>
-        prev.map(x =>
-          x.id === item.id ? item : x
-        )
-      );
-    } else {
-      setEquipment(prev => [
-        ...prev,
-        {
-          ...item,
-          id: Math.max(0, ...prev.map(x => x.id)) + 1
-        }
-      ]);
-    }
-
-    setEditing(null);
-    setShowForm(false);
-  }
-
-  // Delete Equipment
-
-  function remove(id) {
-    if (window.confirm('Delete this equipment item?')) {
-      setEquipment(prev =>
-        prev.filter(x => x.id !== id)
-      );
-    }
-  }
-  // Cycle Equipment Status
-
-  function cycle(id) {
-    setEquipment(prev =>
-      prev.map(x =>
-        x.id === id
-          ? {
-              ...x,
-              status:
-                statuses[
-                  (statuses.indexOf(x.status) + 1) %
-                    statuses.length
-                ]
-            }
-          : x
-      )
-    );
-  }
-
-  // Edit Equipment
-
+  //Keep the existing editing interaction.
   function edit(item) {
     setEditing(item);
     setShowForm(true);
 
     window.scrollTo({
       top: 0,
-      behavior: 'smooth'
+      behavior: "smooth"
     });
   }
 
-  // Reset Sample Data
+  async function save(item) {
+    if (editing) {
+      await updateEquipment(editing._id, item);
+      setSuccess("Equipment updated successfully.");
+    } else {
+      await createEquipment(item);
+      setSuccess("Equipment created successfully.");
+    }
 
-  function reset() {
-    if (window.confirm('Restore starter equipment?')) {
-      setEquipment(initialEquipment);
-      setEditing(null);
-      setShowForm(false);
+    setEditing(null);
+    setShowForm(false);
+    await loadEquipment();
+  }
+
+  async function remove(id) {
+    const confirmed = window.confirm(
+      "Delete this equipment item?"
+    );
+
+    if (!confirmed) return;
+
+    try {
+      await deleteEquipment(id);
+      setSuccess("Equipment deleted successfully.");
+      await loadEquipment();
+    } catch (err) {
+      setError(err.message);
     }
   }
-  // User Interfaces
+
+  const availableCount = equipment.filter(
+    item => item.available
+  ).length;
+
+  const rentedCount = equipment.length - availableCount;
 
   return (
     <div className="shell">
-
-      {/* Sidebar Navigation */}
       <aside className="sidebar">
-
         <div className="brand">
           ▣ <span>GearVault</span>
         </div>
 
-        <div className="side-label">
-          WORKSPACE
-        </div>
+        <div className="side-label">WORKSPACE</div>
 
         <div className="nav active">
           ▦ &nbsp; Inventory
@@ -150,7 +149,7 @@ export default function App() {
 
         <div className="nav disabled">
           ▤ &nbsp; Rentals
-          <small>Coming soon</small>
+          <small>Coming Friday</small>
         </div>
 
         <div className="nav disabled">
@@ -163,21 +162,17 @@ export default function App() {
         </div>
 
         <div className="sidebar-note">
-          FRONTEND STARTER
+          FULL-STACK MODE
           <br />
           <span>
-            React + Vite
+            React + Express
             <br />
-            Backend begins Week 1
+            MongoDB Persistence
           </span>
         </div>
-
       </aside>
 
-      {/* Main Content */}
       <main>
-
-        {/* Page Header */}
         <header>
           <div>
             <div className="eyebrow">
@@ -188,23 +183,27 @@ export default function App() {
               Manage your rental equipment in one place.
             </p>
           </div>
+
           <button
             className="primary"
             onClick={() => {
               setEditing(null);
-              setShowForm(v => !v);
+              setShowForm(value => !value);
             }}
           >
             + Add equipment
           </button>
         </header>
-        {/* Learning Mode Notice */}
+
         <div className="notice">
-          Learning mode: Data is stored in your browser
-          using localStorage. This section will change as we
-          build our Express API.
+          Full-stack mode: Equipment is retrieved
+          from MongoDB through the Express API.
+          {success && (
+            <p role="status" className="notice">
+              {success}
+            </p>
+          )}
         </div>
-        {/* Equipment Statistics */}
         <section className="stats">
           <div>
             <span>Total assets</span>
@@ -212,36 +211,17 @@ export default function App() {
           </div>
           <div>
             <span>Available</span>
-            <strong>
-              {
-                equipment.filter(
-                  x => x.status === 'Available'
-                ).length
-              }
-            </strong>
+            <strong>{availableCount}</strong>
           </div>
           <div>
-            <span>Currently rented</span>
-            <strong>
-              {
-                equipment.filter(
-                  x => x.status === 'Rented'
-                ).length
-              }
-            </strong>
+            <span>Unavailable</span>
+            <strong>{rentedCount}</strong>
           </div>
           <div>
             <span>Maintenance</span>
-            <strong>
-              {
-                equipment.filter(
-                  x => x.status === 'Maintenance'
-                ).length
-              }
-            </strong>
+            <strong>0</strong>
           </div>
         </section>
-        {/* Add / Edit Equipment Form */}
         {showForm && (
           <EquipmentForm
             editing={editing}
@@ -252,9 +232,8 @@ export default function App() {
             }}
           />
         )}
-        {/* Equipment Inventory */}
+
         <section className="inventory">
-          {/* Section Heading */}
           <div className="section-head">
             <div>
               <h2>Equipment catalog</h2>
@@ -264,65 +243,79 @@ export default function App() {
             </div>
             <button
               className="ghost"
-              onClick={reset}
+              onClick={loadEquipment}
             >
-              Reset sample data
+              Refresh equipment
             </button>
           </div>
-          {/* Search and Filters */}
           <div className="filters">
             <input
               aria-label="Search equipment"
               placeholder="Search equipment..."
               value={search}
-              onChange={e => setSearch(e.target.value)}
+              onChange={event =>
+                setSearch(event.target.value)
+              }
             />
             <select
               aria-label="Filter category"
               value={category}
-              onChange={e => setCategory(e.target.value)}
+              onChange={event =>
+                setCategory(event.target.value)
+              }
             >
-              {categories.map(c => (
-                <option key={c}>
-                  {c}
-                </option>
+              {categories.map(value => (
+                <option key={value}>{value}</option>
               ))}
             </select>
             <select
               aria-label="Filter status"
               value={status}
-              onChange={e => setStatus(e.target.value)}
+              onChange={event =>
+                setStatus(event.target.value)
+              }
             >
-              {['All', ...statuses].map(s => (
-                <option key={s}>
-                  {s}
-                </option>
+              {["All", ...statuses].map(value => (
+                <option key={value}>{value}</option>
               ))}
             </select>
           </div>
-          {/* Equipment Cards */}
-          <div className="cards">
-            {visible.map(item => (
-              <EquipmentCard
-                key={item.id}
-                item={item}
-                onEdit={edit}
-                onDelete={remove}
-                onStatus={cycle}
-              />
-            ))}
-          </div>
-          {/* Empty Search Results */}
-          {visible.length === 0 && (
-            <div className="empty">
-              No matching equipment found.
-              Try different filters.
+          {loading && <p>Loading equipment...</p>}
+
+          {error && (
+            <div role="alert">
+              <p>Error: {error}</p>
+              <button onClick={loadEquipment}>
+                Try again
+              </button>
             </div>
           )}
+
+          {!loading && !error && (
+            <>
+              <div className="cards">
+                {visible.map(item => (
+                  <EquipmentCard
+                    key={item._id}
+                    item={item}
+                    onEdit={edit}
+                    onDelete={remove}
+                  />
+                ))}
+              </div>
+
+              {visible.length === 0 && (
+                <div className="empty">
+                  No matching equipment found.
+                  Try different filters.
+                </div>
+              )}
+            </>
+          )}
         </section>
-        {/* Footer */}
+
         <footer>
-          GearVault · Full Stack Development · Week 1 Starter
+          GearVault · Full Stack Development · Full Integration Version 
         </footer>
       </main>
     </div>

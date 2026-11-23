@@ -1,58 +1,129 @@
-import React, { useState, useEffect } from "react";
+import React, {
+  useState,
+  useEffect
+} from "react";
+
 const blank = {
   name: "",
   category: "Camera",
   condition: "Excellent",
-  status: "Available",
   dailyRate: "",
-  description: "",
+  notes: ""
 };
-export default function EquipmentForm({ editing, onSave, onCancel }) {
+export default function EquipmentForm({
+  editing,
+  onSave,
+  onCancel
+}) {
   const [form, setForm] = useState(blank);
-  useEffect(() => setForm(editing ? { ...editing } : blank), [editing]);
-  function update(e) {
-    const { name, value } = e.target;
-    setForm((prev) => ({ ...prev, [name]: value }));
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  useEffect(() => {
+    setForm(
+      editing
+        ? {
+            name: editing.name,
+            category: editing.category,
+            condition: editing.condition,
+            dailyRate: editing.dailyRate,
+            notes: editing.notes || ""
+          }
+        : { ...blank }
+    );
+
+    setError("");
+  }, [editing]);
+  function update(event) {
+    const { name, value } = event.target;
+
+    setForm(previous => ({
+      ...previous,
+      [name]: value
+    }));
   }
-  function submit(e) {
-    e.preventDefault();
-    if (!form.name.trim() || Number(form.dailyRate) <= 0) return;
-    onSave({
-      ...form,
-      name: form.name.trim(),
-      dailyRate: Number(form.dailyRate),
-    });
-    if (!editing) setForm(blank);
+  async function submit(event) {
+    event.preventDefault();
+
+    if (!form.name.trim()) {
+      setError("Equipment name is required.");
+      return;
+    }
+
+    const rate = Number(form.dailyRate);
+    if (!Number.isFinite(rate) || rate < 0) {
+      setError("Daily rate must be zero or greater.");
+      return;
+    }
+
+    setSaving(true);
+    setError("");
+    try {
+      await onSave({
+        name: form.name.trim(),
+        category: form.category,
+        condition: form.condition,
+        dailyRate: rate,
+        notes: form.notes
+      });
+
+      if (!editing) {
+        setForm({ ...blank });
+      }
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSaving(false);
+    }
   }
   return (
     <form onSubmit={submit} className="form">
-      <h2>{editing ? "Edit equipment" : "Add equipment"}</h2>
+      <h2>
+        {editing
+          ? "Edit equipment"
+          : "Add equipment"}
+      </h2>
       <label>
         Name
-        <input name="name" value={form.name} onChange={update} required />
+        <input
+          name="name"
+          value={form.name}
+          onChange={update}
+          required
+        />
       </label>
       <div className="form-grid">
         <label>
           Category
-          <select name="category" value={form.category} onChange={update}>
-            {["Camera", "Audio", "Lighting", "Projector", "Other"].map((c) => (
-              <option key={c}>{c}</option>
+          <select
+            name="category"
+            value={form.category}
+            onChange={update}
+          >
+            {[
+              "Camera",
+              "Audio",
+              "Lighting",
+              "Projector",
+              "Other"
+            ].map(value => (
+              <option key={value}>{value}</option>
             ))}
           </select>
         </label>
         <label>
           Condition
-          <select name="condition" value={form.condition} onChange={update}>
-            {["Excellent", "Good", "Fair"].map((c) => (
-              <option key={c}>{c}</option>
-            ))}
-          </select>
-        </label>
-        <label>
-          Status
-          <select name="status" value={form.status} onChange={update}>
-            {["Available", "Rented", "Maintenance"].map((c) => (
-              <option key={c}>{c}</option>
+          <select
+            name="condition"
+            value={form.condition}
+            onChange={update}
+          >
+            {[
+              "Excellent",
+              "Good",
+              "Fair",
+              "Needs Repair"
+            ].map(value => (
+              <option key={value}>{value}</option>
             ))}
           </select>
         </label>
@@ -61,7 +132,7 @@ export default function EquipmentForm({ editing, onSave, onCancel }) {
           <input
             name="dailyRate"
             type="number"
-            min="1"
+            min="0"
             step="0.01"
             value={form.dailyRate}
             onChange={update}
@@ -70,22 +141,37 @@ export default function EquipmentForm({ editing, onSave, onCancel }) {
         </label>
       </div>
       <label>
-        Description
+        Notes
         <textarea
-          name="description"
-          value={form.description}
+          name="notes"
+          value={form.notes}
           onChange={update}
         />
       </label>
+      {error && (
+        <p role="alert" className="error">
+          {error}
+        </p>
+      )}
       <div className="form-actions">
-        <button className="primary" type="submit">
-          {editing ? "Save changes" : "Add equipment"}
+        <button
+          className="primary"
+          type="submit"
+          disabled={saving}
+        >
+          {saving
+            ? "Saving..."
+            : editing
+              ? "Save changes"
+              : "Add equipment"}
         </button>
-        {editing && (
-          <button type="button" onClick={onCancel}>
-            Cancel
-          </button>
-        )}
+        <button
+          type="button"
+          onClick={onCancel}
+          disabled={saving}
+        >
+          Cancel
+        </button>
       </div>
     </form>
   );
